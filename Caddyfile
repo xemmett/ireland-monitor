@@ -1,0 +1,37 @@
+{$DOMAIN} {
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove server fingerprinting
+        -Server
+    }
+
+    # Cache incident data at the edge — updates every 12 min so 30s is safe
+    handle /api/incidents* {
+        header Cache-Control "public, max-age=30, stale-while-revalidate=60"
+        reverse_proxy api:8000
+    }
+
+    # Brief regenerates each cycle; 2-min edge cache is fine
+    handle /api/brief {
+        header Cache-Control "public, max-age=120, stale-while-revalidate=240"
+        reverse_proxy api:8000
+    }
+
+    # Sources status: 60s cache
+    handle /api/sources {
+        header Cache-Control "public, max-age=60"
+        reverse_proxy api:8000
+    }
+
+    # SSE and health: no cache
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+
+    handle {
+        reverse_proxy web:3000
+    }
+}

@@ -1,0 +1,10 @@
+apscheduler>=3.10
+asyncpg
+redis[asyncio]
+anthropic>=0.40
+httpx
+feedparser
+rapidfuzz
+playwright
+pydantic>=2
+python-dotenv
