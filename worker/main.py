@@ -9,7 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from brief import generate_and_cache
 from enricher import RawItem, enrich
-from storage import expire_old, find_cluster, update_source_status, upsert_incident
+from storage import ensure_schema, expire_old, find_cluster, update_source_status, upsert_incident
 
 from ingesters import gdelt, rss, reddit, telegram_pub, twitter
 
@@ -101,6 +101,7 @@ async def cycle():
                     "location": inc.location,
                     "lat": inc.lat,
                     "lng": inc.lng,
+                    "country": inc.country,
                     "confidence": inc.confidence,
                     "cluster_id": inc.cluster_id,
                 }
@@ -136,6 +137,8 @@ async def main():
     else:
         logger.error("Could not connect to DB after 30 attempts, exiting")
         sys.exit(1)
+
+    await ensure_schema(pool)
 
     # Run an immediate cycle on startup
     await cycle()

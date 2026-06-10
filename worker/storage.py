@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 
 import asyncpg
 import redis.asyncio as aioredis
@@ -9,6 +10,40 @@ from rapidfuzz import fuzz
 from enricher import Incident
 
 logger = logging.getLogger(__name__)
+
+_GAZETTEER_PATH = Path(__file__).parent / "gazetteer.json"
+
+
+async def ensure_schema(pool: asyncpg.Pool):
+    """Idempotent migrations for DB volumes created before the all-Ireland
+    expansion — db/init.sql only runs on a brand-new volume."""
+    async with pool.acquire() as conn:
+        await conn.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS country TEXT")
+        try:
+            await conn.execute(
+                "ALTER TABLE incidents ADD CONSTRAINT incidents_country_check "
+                "CHECK (country IN ('NI','ROI'))"
+            )
+        except asyncpg.exceptions.DuplicateObjectError:
+            pass
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_incidents_country ON incidents (country)"
+        )
+
+        # Backfill country for rows inserted before this column existed.
+        with open(_GAZETTEER_PATH) as f:
+            gazetteer = json.load(f)
+
+        for country in ("NI", "ROI"):
+            terms = [f"%{name}%" for name, entry in gazetteer.items() if entry["country"] == country]
+            await conn.execute(
+                "UPDATE incidents SET country = $1 WHERE country IS NULL AND location ILIKE ANY($2)",
+                country,
+                terms,
+            )
+
+        # Anything still unmatched predates the expansion and was NI-only.
+        await conn.execute("UPDATE incidents SET country = 'NI' WHERE country IS NULL")
 
 
 async def find_cluster(
@@ -40,10 +75,10 @@ async def upsert_incident(pool: asyncpg.Pool, incident: Incident) -> bool:
     query = """
         INSERT INTO incidents
             (id, time, first_seen, title, summary, severity, source, source_type,
-             url, location, geom, confidence, cluster_id, raw_hash)
+             url, location, geom, confidence, cluster_id, raw_hash, country)
         VALUES
             ($1, $2, $3, $4, $5, $6, $7, $8,
-             $9, $10, ST_MakePoint($12, $11)::geography, $13, $14, $1)
+             $9, $10, ST_MakePoint($12, $11)::geography, $13, $14, $1, $15)
         ON CONFLICT (id) DO NOTHING
     """
     try:
@@ -64,6 +99,7 @@ async def upsert_incident(pool: asyncpg.Pool, incident: Incident) -> bool:
                 incident.lng,
                 incident.confidence,
                 incident.cluster_id,
+                incident.country,
             )
         return result == "INSERT 0 1"
     except asyncpg.UniqueViolationError:

@@ -41,6 +41,7 @@ async def get_incidents(
     since: str | None = None,
     severity_min: str | None = None,
     bbox: str | None = None,
+    country: str | None = None,
     limit: int = 500,
 ) -> list[dict]:
     pool = await get_pool()
@@ -70,10 +71,15 @@ async def get_incidents(
             args.extend(parts)
             n += 4
 
+    if country:
+        conditions.append(f"country = ${n}")
+        args.append(country)
+        n += 1
+
     where = " AND ".join(conditions)
     query = f"""
         SELECT id, time, first_seen, title, summary, severity, source, source_type,
-               url, location, confidence, cluster_id,
+               url, location, confidence, cluster_id, country,
                ST_Y(geom::geometry) AS lat,
                ST_X(geom::geometry) AS lng
         FROM incidents
@@ -89,14 +95,21 @@ async def get_incidents(
     return [_row_to_dict(r) for r in rows]
 
 
-async def get_geojson(since: str | None = None) -> dict:
+async def get_geojson(since: str | None = None, country: str | None = None) -> dict:
     pool = await get_pool()
     conditions = ["1=1"]
     args: list[Any] = []
+    n = 1
 
     if since:
-        conditions.append("time >= $1::timestamptz")
+        conditions.append(f"time >= ${n}::timestamptz")
         args.append(since)
+        n += 1
+
+    if country:
+        conditions.append(f"country = ${n}")
+        args.append(country)
+        n += 1
 
     where = " AND ".join(conditions)
     query = f"""
@@ -117,7 +130,8 @@ async def get_geojson(since: str | None = None) -> dict:
                         'url', url,
                         'location', location,
                         'confidence', confidence,
-                        'cluster_id', cluster_id
+                        'cluster_id', cluster_id,
+                        'country', country
                     )
                 )
             ), '[]'::json)
@@ -136,7 +150,7 @@ async def get_recent_incidents(hours: int = 24) -> list[dict]:
     pool = await get_pool()
     query = """
         SELECT id, time, first_seen, title, summary, severity, source, source_type,
-               url, location, confidence, cluster_id,
+               url, location, confidence, cluster_id, country,
                ST_Y(geom::geometry) AS lat,
                ST_X(geom::geometry) AS lng
         FROM incidents

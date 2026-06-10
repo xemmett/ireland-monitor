@@ -14,9 +14,11 @@ const COLORS: Record<string, string> = {
 
 const MONO = "'Share Tech Mono', 'Courier New', monospace";
 
+export type BriefRegion = "all" | "ni" | "roi";
+
 interface Brief {
   situation: string;
-  hotspots: { location: string; summary: string; severity: string }[];
+  hotspots: { location: string; summary: string; severity: string; region?: "NI" | "ROI" }[];
   escalation_outlook: string;
   monitoring_priorities: string[];
   generated_at: string | null;
@@ -32,38 +34,40 @@ function timeAgo(iso: string): string {
   return `${hrs}h ago`;
 }
 
-export default function BriefPanel() {
+export default function BriefPanel({ region = "all" }: { region?: BriefRegion }) {
   const [brief, setBrief] = useState<Brief | null>(null);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchBrief = async () => {
     try {
-      const res = await fetch(`${API_BASE}/brief`);
+      const res = await fetch(`${API_BASE}/brief?region=${region}`);
       if (res.ok) setBrief(await res.json());
     } catch {}
     setLoading(false);
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchBrief();
     intervalRef.current = setInterval(fetchBrief, 5 * 60 * 1000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [region]);
 
-  // Live updates — worker pushes a fresh brief whenever new incidents land
+  // Live updates — worker pushes a fresh {all,ni,roi} brief whenever new incidents land
   useEffect(() => {
     const es = new EventSource(`${API_BASE}/stream`);
     es.addEventListener("brief", (e) => {
       try {
-        setBrief(JSON.parse(e.data));
+        const data = JSON.parse(e.data);
+        setBrief(data[region] ?? data);
         setLoading(false);
       } catch {}
     });
     return () => es.close();
-  }, []);
+  }, [region]);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>

@@ -16,6 +16,8 @@ RSS_FEEDS: dict[str, tuple[str, str]] = {
     "Irish News":         ("https://www.irishnews.com/arc/outboundfeeds/rss/", "news"),
     "The Journal":        ("https://www.thejournal.ie/feed/", "news"),
     "PSNI":               ("https://www.psni.police.uk/news/Latest-News/rss/", "official"),
+    "Irish Times":        ("https://www.irishtimes.com/cmlink/news-1.1319192", "news"),
+    "Irish Independent":  ("https://www.independent.ie/irish-news/rss/", "news"),
 }
 
 HEADERS = {

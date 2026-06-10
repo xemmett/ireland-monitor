@@ -11,9 +11,9 @@ TWITTER_SEED = 9001
 SEARCHES = [
     "Belfast riot OR disorder",
     "Northern Ireland protest",
-    "Ballymena unrest",
-    "PSNI disorder",
-    "Belfast march OR demonstration",
+    "Dublin riot OR protest OR disorder",
+    "PSNI OR Garda disorder",
+    "Ireland protest OR demonstration",
 ]
 
 

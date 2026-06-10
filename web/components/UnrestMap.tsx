@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
@@ -19,8 +19,14 @@ export interface Incident {
   location: string;
   lat: number;
   lng: number;
+  country: "NI" | "ROI";
   confidence: number;
   cluster_id: string | null;
+}
+
+export interface MapView {
+  center: [number, number];
+  zoom: number;
 }
 
 const COLORS: Record<string, string> = {
@@ -66,9 +72,11 @@ function formatTime(iso: string): string {
 
 function MapController({
   focusTarget,
+  view,
   hidden,
 }: {
   focusTarget: { lat: number; lng: number } | null;
+  view?: MapView;
   hidden: boolean;
 }) {
   const map = useMap();
@@ -77,6 +85,18 @@ function MapController({
       map.flyTo([focusTarget.lat, focusTarget.lng], 14, { duration: 1.2 });
     }
   }, [focusTarget, map]);
+  // Re-center/zoom when the dashboard's region changes — skip the initial
+  // mount since MapContainer's center/zoom props already cover that.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (view) {
+      map.flyTo(view.center, view.zoom, { duration: 1.2 });
+    }
+  }, [view, map]);
   // Invalidate size when the container becomes visible again (mobile tab switch)
   useEffect(() => {
     if (!hidden) {
@@ -91,14 +111,18 @@ interface Props {
   incidents: Incident[];
   newIds?: Set<string>;
   focusTarget?: { lat: number; lng: number } | null;
+  view?: MapView;
   hidden?: boolean;
 }
 
-export default function UnrestMap({ incidents, newIds, focusTarget, hidden = false }: Props) {
+const DEFAULT_VIEW: MapView = { center: [54.7, -6.6], zoom: 8 };
+
+export default function UnrestMap({ incidents, newIds, focusTarget, view, hidden = false }: Props) {
+  const initialView = view ?? DEFAULT_VIEW;
   return (
     <MapContainer
-      center={[54.7, -6.6]}
-      zoom={8}
+      center={initialView.center}
+      zoom={initialView.zoom}
       style={{ height: "100%", width: "100%" }}
       zoomControl={true}
     >
@@ -108,7 +132,7 @@ export default function UnrestMap({ incidents, newIds, focusTarget, hidden = fal
         subdomains="abcd"
         maxZoom={19}
       />
-      <MapController focusTarget={focusTarget ?? null} hidden={hidden} />
+      <MapController focusTarget={focusTarget ?? null} view={view} hidden={hidden} />
       <MarkerClusterGroup chunkedLoading showCoverageOnHover={false}>
         {incidents.map((inc) => (
           <Marker

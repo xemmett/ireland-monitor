@@ -15,8 +15,14 @@ _EMPTY = {
 }
 
 
-async def get_brief(redis_client: aioredis.Redis) -> dict:
+async def get_brief(redis_client: aioredis.Redis, region: str = "all") -> dict:
     cached = await redis_client.get(BRIEF_KEY)
     if cached:
-        return json.loads(cached)
+        data = json.loads(cached)
+        if region in data:
+            return data[region]
+        # Legacy single-region brief cached before the all-Ireland expansion —
+        # self-heals once the worker publishes the next {all,ni,roi} brief.
+        if "situation" in data:
+            return data
     return _EMPTY

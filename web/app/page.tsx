@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
-import BriefPanel from "@/components/BriefPanel";
+import BriefPanel, { type BriefRegion } from "@/components/BriefPanel";
 import LiveFeed from "@/components/LiveFeed";
 import LiveStreams from "@/components/LiveStreams";
 import SourceStatus from "@/components/SourceStatus";
 import ThreatMeter, { type Severity } from "@/components/ThreatMeter";
-import type { Incident } from "@/components/UnrestMap";
+import type { Incident, MapView } from "@/components/UnrestMap";
 
 const UnrestMap = dynamic(() => import("@/components/UnrestMap"), {
   ssr: false,
@@ -34,17 +34,59 @@ const API_BASE = "/api";
 const SEVERITY_ORDER: Severity[] = ["calm", "watch", "elevated", "high", "critical"];
 const MONO = "'Share Tech Mono', 'Courier New', monospace";
 
-const NI_KEYWORDS = [
-  "belfast", "derry", "londonderry", "antrim", "armagh", "fermanagh", "tyrone",
-  "newry", "lisburn", "omagh", "enniskillen", "ballymena", "coleraine", "bangor",
-  "newtownards", "larne", "craigavon", "lurgan", "portadown", "strabane",
-  "north ireland", "northern ireland", "ni ", ", ni", "county down", "county antrim",
-  "county armagh", "county tyrone", "county fermanagh",
-];
+type Region = "ALL" | "NI" | "ROI";
 
-function isNI(inc: Incident): boolean {
-  const loc = inc.location.toLowerCase();
-  return NI_KEYWORDS.some((kw) => loc.includes(kw));
+const REGIONS: Region[] = ["NI", "ROI", "ALL"];
+
+const MAP_VIEWS: Record<Region, MapView> = {
+  NI: { center: [54.7, -6.6], zoom: 8 },
+  ROI: { center: [53.0, -8.0], zoom: 7 },
+  ALL: { center: [53.4, -7.9], zoom: 6 },
+};
+
+function matchesRegion(inc: Incident, region: Region): boolean {
+  return region === "ALL" || inc.country === region;
+}
+
+function RegionSwitcher({
+  region,
+  setRegion,
+  mobile,
+}: {
+  region: Region;
+  setRegion: (r: Region) => void;
+  mobile: boolean;
+}) {
+  const labels: Record<Region, string> = {
+    NI: "NI",
+    ROI: "ROI",
+    ALL: mobile ? "ALL" : "ALL IRELAND",
+  };
+  return (
+    <div style={{ display: "flex", gap: mobile ? 2 : 4 }}>
+      {REGIONS.map((key) => (
+        <button
+          key={key}
+          onClick={() => setRegion(key)}
+          style={{
+            fontSize: mobile ? 10 : 11,
+            fontWeight: 700,
+            letterSpacing: mobile ? 1 : 1.5,
+            fontFamily: MONO,
+            padding: mobile ? "4px 6px" : "4px 8px",
+            border: "none",
+            borderBottom: region === key ? "2px solid #2ea89c" : "2px solid transparent",
+            background: "transparent",
+            color: region === key ? "#b8ccd8" : "#4a6070",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {labels[key]}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function getMaxSeverity(incidents: Incident[]): Severity {
@@ -109,17 +151,17 @@ export default function Dashboard() {
   const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [activeTab, setActiveTab] = useState<MobileTab>("map");
   const [rightTab, setRightTab] = useState<"feed" | "live">("feed");
+  const [region, setRegion] = useState<Region>("NI");
   const mobile = useMobile();
 
   useEffect(() => {
-    fetch(`${API_BASE}/incidents?limit=200`)
+    fetch(`${API_BASE}/incidents?limit=300`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: Incident[]) => setIncidents(data.filter(isNI)))
+      .then((data: Incident[]) => setIncidents(data))
       .catch(() => {});
   }, []);
 
   const onNewIncident = useCallback((inc: Incident) => {
-    if (!isNI(inc)) return;
     setIncidents((prev) => {
       if (prev.some((p) => p.id === inc.id)) return prev;
       return [inc, ...prev];
@@ -135,7 +177,15 @@ export default function Dashboard() {
     if (mobile) setActiveTab("map");
   }, [mobile]);
 
-  const maxSeverity = getMaxSeverity(incidents);
+  // Clear any per-incident map focus when switching dashboards so it doesn't
+  // fight the new region's recenter.
+  useEffect(() => {
+    setFocusTarget(null);
+  }, [region]);
+
+  const filteredIncidents = incidents.filter((inc) => matchesRegion(inc, region));
+  const maxSeverity = getMaxSeverity(filteredIncidents);
+  const briefRegion = region.toLowerCase() as BriefRegion;
 
   const topBar = (
     <div
@@ -162,18 +212,7 @@ export default function Dashboard() {
             flexShrink: 0,
           }}
         />
-        <span
-          style={{
-            fontSize: mobile ? 11 : 12,
-            fontWeight: 700,
-            letterSpacing: mobile ? 1 : 2,
-            color: "#b8ccd8",
-            fontFamily: MONO,
-            whiteSpace: "nowrap",
-          }}
-        >
-          NI UNREST MONITOR
-        </span>
+        <RegionSwitcher region={region} setRegion={setRegion} mobile={mobile} />
       </div>
 
       <ThreatMeter maxSeverity={maxSeverity} />
@@ -181,7 +220,7 @@ export default function Dashboard() {
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
         {!mobile && (
           <span style={{ fontSize: 10, color: "#4a6070", fontFamily: MONO, letterSpacing: 1 }}>
-            {incidents.length} EVENTS
+            {filteredIncidents.length} EVENTS
           </span>
         )}
         <IrishClock />
@@ -206,9 +245,10 @@ export default function Dashboard() {
             }}
           >
             <UnrestMap
-              incidents={incidents}
+              incidents={filteredIncidents}
               newIds={newIds}
               focusTarget={focusTarget}
+              view={MAP_VIEWS[region]}
               hidden={activeTab !== "map"}
             />
           </div>
@@ -216,7 +256,7 @@ export default function Dashboard() {
           {/* Brief */}
           {activeTab === "brief" && (
             <div style={{ position: "absolute", inset: 0, background: "#0d1219", overflowY: "auto" }}>
-              <BriefPanel />
+              <BriefPanel region={briefRegion} />
             </div>
           )}
 
@@ -224,7 +264,7 @@ export default function Dashboard() {
           {activeTab === "feed" && (
             <div style={{ position: "absolute", inset: 0, background: "#0d1219", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <LiveFeed onNewIncident={onNewIncident} filterFn={isNI} onFocusIncident={onFocusIncident} />
+                <LiveFeed key={region} onNewIncident={onNewIncident} filterFn={(inc) => matchesRegion(inc, region)} onFocusIncident={onFocusIncident} />
               </div>
               <div style={{ flexShrink: 0, borderTop: "1px solid #1a2535", padding: "8px 10px" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4a6070", marginBottom: 6, fontFamily: MONO }}>
@@ -326,12 +366,12 @@ export default function Dashboard() {
             boxShadow: "1px 0 0 #1e3a4a",
           }}
         >
-          <BriefPanel />
+          <BriefPanel region={briefRegion} />
         </div>
 
         {/* Center: Map */}
         <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-          <UnrestMap incidents={incidents} newIds={newIds} focusTarget={focusTarget} />
+          <UnrestMap incidents={filteredIncidents} newIds={newIds} focusTarget={focusTarget} view={MAP_VIEWS[region]} />
         </div>
 
         {/* Right: Feed + Sources */}
@@ -374,7 +414,7 @@ export default function Dashboard() {
 
           <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             {rightTab === "feed" ? (
-              <LiveFeed onNewIncident={onNewIncident} filterFn={isNI} onFocusIncident={onFocusIncident} />
+              <LiveFeed key={region} onNewIncident={onNewIncident} filterFn={(inc) => matchesRegion(inc, region)} onFocusIncident={onFocusIncident} />
             ) : (
               <LiveStreams />
             )}

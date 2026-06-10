@@ -34,33 +34,33 @@ def _normalise(text: str) -> str:
     return text
 
 
-def _gazetteer_lookup(location: str) -> tuple[float, float] | None:
+def _gazetteer_lookup(location: str) -> tuple[float, float, str] | None:
     gz = _load_gazetteer()
     norm = _normalise(location)
 
     # Exact match
     if norm in gz:
         entry = gz[norm]
-        return entry["lat"], entry["lng"]
+        return entry["lat"], entry["lng"], entry["country"]
 
     # Substring match: find if any gazetteer key is in the location string
     for key, entry in gz.items():
         if key in norm or norm in key:
-            return entry["lat"], entry["lng"]
+            return entry["lat"], entry["lng"], entry["country"]
 
     return None
 
 
 async def _nominatim_lookup(
     location: str, redis_client: aioredis.Redis
-) -> tuple[float, float] | None:
+) -> tuple[float, float, str] | None:
     norm = _normalise(location)
-    cache_key = f"geo:{norm}"
+    cache_key = f"geo2:{norm}"
 
     cached = await redis_client.get(cache_key)
     if cached:
         data = json.loads(cached)
-        return data["lat"], data["lng"]
+        return data["lat"], data["lng"], data["country"]
 
     async with _NOM_SEMAPHORE:
         await asyncio.sleep(1.0)
@@ -70,15 +70,24 @@ async def _nominatim_lookup(
             ) as client:
                 resp = await client.get(
                     "https://nominatim.openstreetmap.org/search",
-                    params={"q": f"{location}, Ireland", "format": "json", "limit": 1},
+                    params={
+                        "q": f"{location}, Ireland",
+                        "format": "json",
+                        "limit": 1,
+                        "addressdetails": 1,
+                    },
                 )
                 resp.raise_for_status()
                 results = resp.json()
                 if results:
                     lat = float(results[0]["lat"])
                     lng = float(results[0]["lon"])
-                    await redis_client.set(cache_key, json.dumps({"lat": lat, "lng": lng}))
-                    return lat, lng
+                    country_code = results[0].get("address", {}).get("country_code", "")
+                    country = "NI" if country_code == "gb" else "ROI"
+                    await redis_client.set(
+                        cache_key, json.dumps({"lat": lat, "lng": lng, "country": country})
+                    )
+                    return lat, lng, country
         except Exception as e:
             logger.warning("Nominatim lookup failed for %r: %s", location, e)
 
@@ -87,7 +96,7 @@ async def _nominatim_lookup(
 
 async def lookup(
     location: str, redis_client: aioredis.Redis
-) -> tuple[float, float] | None:
+) -> tuple[float, float, str] | None:
     if not location:
         return None
 

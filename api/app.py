@@ -101,23 +101,24 @@ async def incidents(
     since: str | None = Query(None),
     severity_min: str | None = Query(None),
     bbox: str | None = Query(None),
+    country: str | None = Query(None),
     limit: int = Query(500, le=2000),
 ):
-    rows = await get_incidents(since=since, severity_min=severity_min, bbox=bbox, limit=limit)
+    rows = await get_incidents(since=since, severity_min=severity_min, bbox=bbox, country=country, limit=limit)
     _cached(response, 30)
     return rows
 
 
 @app.get("/api/incidents/geojson")
-async def incidents_geojson(response: Response, since: str | None = Query(None)):
+async def incidents_geojson(response: Response, since: str | None = Query(None), country: str | None = Query(None)):
     _cached(response, 30)
-    return await get_geojson(since=since)
+    return await get_geojson(since=since, country=country)
 
 
 @app.get("/api/brief")
-async def brief(response: Response):
+async def brief(response: Response, region: str = Query("all")):
     redis_client = get_redis()
-    result = await get_brief(redis_client)
+    result = await get_brief(redis_client, region=region)
     _cached(response, 120)
     return result
 

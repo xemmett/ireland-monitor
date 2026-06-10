@@ -75,6 +75,7 @@ class Incident:
     location: str
     lat: float
     lng: float
+    country: str
     confidence: float
     cluster_id: str | None = None
 
@@ -198,7 +199,7 @@ async def enrich(
                 logger.debug("No coords for location %r, skipping", location)
                 continue
 
-            lat, lng = coords
+            lat, lng, country = coords
 
             try:
                 if raw.published_at:
@@ -224,6 +225,7 @@ async def enrich(
                     location=location,
                     lat=lat,
                     lng=lng,
+                    country=country,
                     confidence=float(cls.get("confidence", 0.5)),
                 )
             )

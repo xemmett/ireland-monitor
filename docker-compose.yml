@@ -41,7 +41,7 @@ services:
     build: ./api
     command: uvicorn app:app --host 0.0.0.0 --port 8000 --loop asyncio
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/unrest
       REDIS_URL: redis://redis:6379/0
@@ -84,27 +84,11 @@ services:
   web:
     build: ./web
     ports:
-      - "13002:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
 
-  caddy:
-    image: caddy:2
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddydata:/data
-      - caddyconfig:/config
-    depends_on:
-      - web
-      - api
-    restart: unless-stopped
-
 volumes:
   dbdata: {}
-  caddydata: {}
-  caddyconfig: {}

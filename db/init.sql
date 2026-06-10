@@ -21,3 +21,15 @@ CREATE INDEX IF NOT EXISTS idx_incidents_time    ON incidents (time DESC);
 CREATE INDEX IF NOT EXISTS idx_incidents_geom    ON incidents USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_incidents_cluster ON incidents (cluster_id);
 CREATE INDEX IF NOT EXISTS idx_incidents_severity ON incidents (severity);
+
+-- Region tagging (NI / ROI), added for the all-Ireland expansion.
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS country TEXT;
+
+DO $$
+BEGIN
+  ALTER TABLE incidents ADD CONSTRAINT incidents_country_check CHECK (country IN ('NI','ROI'));
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_incidents_country ON incidents (country);

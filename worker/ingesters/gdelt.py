@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 GDELT_QUERY = (
     '(protest OR riot OR unrest OR disorder OR "anti-immigration" OR demonstration) '
-    '(Belfast OR "Northern Ireland" OR Ballymena OR Larne OR Derry OR Antrim OR Ireland)'
+    '(Belfast OR "Northern Ireland" OR Ballymena OR Larne OR Derry OR Antrim OR Ireland '
+    'OR Dublin OR Cork OR Limerick OR Galway OR Waterford OR Drogheda)'
 )
 GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 
