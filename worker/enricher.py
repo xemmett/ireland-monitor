@@ -40,15 +40,32 @@ KEYWORDS: dict[str, list[str]] = {
 }
 
 CLASSIFY_PROMPT = """You are a civil-unrest OSINT triage filter for Ireland/Northern Ireland.
+Each item includes a "source" field (subreddit/feed name) for context.
 For each item return JSON only (array, same order as input, no extra text):
 [{{"relevant": true/false, "severity": "calm|watch|elevated|high|critical", "location": "specific place name or town in Ireland/NI", "summary": "1 sentence, factual, NO names of private individuals", "confidence": 0.0-1.0}}]
 Rules:
-- relevant=true ONLY if about protest/riot/civil disorder/unrest actually in Ireland or Northern Ireland
-- If article is about Ireland generally with no specific location, use "Ireland"
+- relevant=true ONLY if the item describes an actual real-world protest, riot, civil disorder, blockade, or unrest event happening in Ireland or Northern Ireland.
+- Off-topic posts (personal questions, deliveries/packages, jobs, sports, memes, general chat) are relevant=false even if posted in an Irish/NI subreddit and even if they contain words like "block", "disorder" or "trouble" in an unrelated sense.
+- severity must reflect the actual scale described: only use "high"/"critical" for events involving real violence, injury, arson, or large-scale disorder; vague mentions, minor/local protests, or routine marches are "calm" or "watch".
+- If no specific place is named, infer it from the source (e.g. Reddit/r/northernireland -> "Northern Ireland", Reddit/r/belfast -> "Belfast", Reddit/r/dublin -> "Dublin", Reddit/r/ireland -> "Ireland"); otherwise use "Ireland".
 - Strip any personal data of private individuals from summaries
 - Confidence reflects how certain you are this is a genuine civil unrest event
 Items (JSON array):
 {items}"""
+
+# Fallback location per source when Haiku can't extract a specific place —
+# keyed on RawItem.source (case-insensitive). Prevents NI-focused subreddits
+# from defaulting to the ROI-tagged "Ireland" gazetteer entry.
+_SOURCE_DEFAULT_LOCATION = {
+    "reddit/r/northernireland": "Northern Ireland",
+    "reddit/r/belfast": "Belfast",
+    "reddit/r/dublin": "Dublin",
+    "reddit/r/ireland": "Ireland",
+}
+
+
+def _default_location_for_source(source: str) -> str:
+    return _SOURCE_DEFAULT_LOCATION.get(source.lower(), "Ireland")
 
 
 @dataclass
@@ -113,7 +130,7 @@ def _max_severity(a: str, b: str) -> str:
 
 async def _haiku_classify(items: list[RawItem]) -> list[dict]:
     client = anthropic.AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    payload = [{"title": it.title, "body": it.body[:300]} for it in items]
+    payload = [{"source": it.source, "title": it.title, "body": it.body[:300]} for it in items]
     try:
         msg = await client.messages.create(
             model=HAIKU_MODEL,
@@ -193,7 +210,7 @@ async def enrich(
             floor = _rules_floor(combined_text)
             final_severity = _max_severity(floor, llm_severity)
 
-            location = cls.get("location", "").strip() or "Ireland"
+            location = cls.get("location", "").strip() or _default_location_for_source(raw.source)
             coords = await geocode_lookup(location, redis_client)
             if not coords:
                 logger.debug("No coords for location %r, skipping", location)

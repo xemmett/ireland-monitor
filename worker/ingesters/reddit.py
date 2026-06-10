@@ -16,8 +16,8 @@ SUBREDDITS_AND_QUERIES = [
     ("https://www.reddit.com/r/northernireland/new.json?limit=25", "r/northernireland new"),
     ("https://www.reddit.com/r/belfast/new.json?limit=25", "r/belfast new"),
     ("https://www.reddit.com/r/dublin/new.json?limit=25", "r/dublin new"),
-    ("https://www.reddit.com/r/northernireland/search.json?q=protest+riot+unrest+disorder&sort=new&limit=25", "r/northernireland search"),
-    ("https://www.reddit.com/r/ireland/search.json?q=protest+riot+unrest+disorder+blockade&sort=new&limit=25", "r/ireland search"),
+    ("https://www.reddit.com/r/northernireland/search.json?q=protest+riot+unrest+disorder&restrict_sr=on&sort=new&limit=25", "r/northernireland search"),
+    ("https://www.reddit.com/r/ireland/search.json?q=protest+riot+unrest+disorder+blockade&restrict_sr=on&sort=new&limit=25", "r/ireland search"),
 ]
 
 # Headers that make Reddit treat the request as a browser XHR, not a page load
