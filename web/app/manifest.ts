@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "NI Unrest Monitor",
-    short_name: "NI Monitor",
+    name: "Ireland Unrest Monitor",
+    short_name: "Ireland Monitor",
     description: "Real-time civil unrest situational awareness for Ireland and Northern Ireland",
     start_url: "/",
     display: "standalone",

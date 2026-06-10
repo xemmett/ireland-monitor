@@ -2,12 +2,12 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NI Unrest Monitor",
+  title: "Ireland Unrest Monitor",
   description: "Real-time civil unrest situational awareness for Ireland/Northern Ireland",
-  applicationName: "NI Unrest Monitor",
+  applicationName: "Ireland Unrest Monitor",
   appleWebApp: {
     capable: true,
-    title: "NI Monitor",
+    title: "Ireland Monitor",
     statusBarStyle: "black-translucent",
   },
   formatDetection: {

@@ -98,7 +98,7 @@ async def lifespan(app: FastAPI):
     await r.aclose()
 
 
-app = FastAPI(title="NI Unrest Monitor API", lifespan=lifespan)
+app = FastAPI(title="Ireland Unrest Monitor API", lifespan=lifespan)
 
 web_origin = os.environ.get("WEB_ORIGIN", "*")
 app.add_middleware(
