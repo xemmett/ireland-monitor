@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,8 @@ from sse_starlette.sse import EventSourceResponse
 
 from brief import get_brief
 from db import close_pool, get_geojson, get_incidents, get_recent_incidents
+
+logger = logging.getLogger(__name__)
 
 _redis: aioredis.Redis | None = None
 
@@ -45,22 +48,42 @@ WEBCAM_SOURCES = {
 
 
 async def _redis_fanout():
-    """Single Redis pub/sub listener that fans out to all SSE clients."""
+    """Single Redis pub/sub listener that fans out to all SSE clients.
+
+    Uses get_message(timeout=...) in a loop rather than listen(): redis-py's
+    RESP3 connections impose an implicit ~5s read timeout, which listen()
+    surfaces as a fatal redis.exceptions.TimeoutError on every idle period
+    (incidents/briefs are only published once per scrape cycle, ~12 minutes
+    apart) — killing this task moments after startup with no recovery.
+    get_message(timeout=...) treats the same idle timeout as a normal "no
+    message yet" None return, so the subscription survives quiet periods
+    without reconnecting (which would otherwise create a message-loss
+    window). The outer loop still reconnects on genuine Redis errors.
+    """
     redis_client = get_redis()
-    pubsub = redis_client.pubsub()
-    await pubsub.subscribe(*_CHANNEL_EVENTS.keys())
-    try:
-        async for message in pubsub.listen():
-            if message["type"] == "message":
-                event_name = _CHANNEL_EVENTS.get(message["channel"], "incident")
-                data = message["data"]
-                for q in list(_sse_clients):
-                    try:
-                        q.put_nowait((event_name, data))
-                    except asyncio.QueueFull:
-                        pass
-    finally:
-        await pubsub.aclose()
+    while True:
+        try:
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe(*_CHANNEL_EVENTS.keys())
+            try:
+                while True:
+                    message = await pubsub.get_message(timeout=5.0)
+                    if message is None or message["type"] != "message":
+                        continue
+                    event_name = _CHANNEL_EVENTS.get(message["channel"], "incident")
+                    data = message["data"]
+                    for q in list(_sse_clients):
+                        try:
+                            q.put_nowait((event_name, data))
+                        except asyncio.QueueFull:
+                            pass
+            finally:
+                await pubsub.aclose()
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error("Redis fanout listener error, reconnecting: %s", e)
+            await asyncio.sleep(2)
 
 
 @asynccontextmanager

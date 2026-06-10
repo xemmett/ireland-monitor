@@ -65,6 +65,25 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Region switcher buttons (NI / ROI / ALL IRELAND) */
+.region-btn {
+  border: 1px solid #1e3a4a;
+  border-radius: 3px;
+  background: var(--panel);
+  color: #9ab0be;
+}
+.region-btn:hover {
+  background: #162030;
+  border-color: #2e6ec0;
+  color: var(--text);
+}
+.region-btn.active,
+.region-btn.active:hover {
+  background: var(--calm);
+  border-color: var(--calm);
+  color: #06181a;
+}
+
 a {
   color: var(--accent);
   text-decoration: none;

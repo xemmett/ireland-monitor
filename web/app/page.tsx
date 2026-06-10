@@ -63,22 +63,18 @@ function RegionSwitcher({
     ALL: mobile ? "ALL" : "ALL IRELAND",
   };
   return (
-    <div style={{ display: "flex", gap: mobile ? 2 : 4 }}>
+    <div style={{ display: "flex", gap: mobile ? 4 : 6 }}>
       {REGIONS.map((key) => (
         <button
           key={key}
+          className={`region-btn${region === key ? " active" : ""}`}
           onClick={() => setRegion(key)}
           style={{
             fontSize: mobile ? 10 : 11,
             fontWeight: 700,
             letterSpacing: mobile ? 1 : 1.5,
             fontFamily: MONO,
-            padding: mobile ? "4px 6px" : "4px 8px",
-            border: "none",
-            borderBottom: region === key ? "2px solid #2ea89c" : "2px solid transparent",
-            background: "transparent",
-            color: region === key ? "#b8ccd8" : "#4a6070",
-            cursor: "pointer",
+            padding: mobile ? "4px 8px" : "5px 10px",
             whiteSpace: "nowrap",
           }}
         >
@@ -151,7 +147,7 @@ export default function Dashboard() {
   const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [activeTab, setActiveTab] = useState<MobileTab>("map");
   const [rightTab, setRightTab] = useState<"feed" | "live">("feed");
-  const [region, setRegion] = useState<Region>("NI");
+  const [region, setRegion] = useState<Region>("ALL");
   const mobile = useMobile();
 
   useEffect(() => {

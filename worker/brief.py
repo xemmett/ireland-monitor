@@ -82,7 +82,7 @@ async def generate_and_cache(pool: asyncpg.Pool, redis_client: aioredis.Redis):
     try:
         msg = await client.messages.create(
             model=BRIEF_MODEL,
-            max_tokens=1400,
+            max_tokens=4096,
             messages=[{"role": "user", "content": BRIEF_PROMPT.format(incidents=items_text)}],
         )
         text = msg.content[0].text.strip()
