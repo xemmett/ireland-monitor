@@ -1,0 +1,24 @@
+import { ImageResponse } from "next/og";
+
+export const size = { width: 180, height: 180 };
+export const contentType = "image/png";
+
+export default function AppleIcon() {
+  return new ImageResponse(
+    (
+      <svg width="180" height="180" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="18" fill="#080c10" />
+        <circle cx="50" cy="50" r="38" stroke="#2ea89c" strokeWidth="3" fill="none" opacity="0.3" />
+        <circle cx="50" cy="50" r="26" stroke="#2ea89c" strokeWidth="3" fill="none" opacity="0.55" />
+        <line x1="50" y1="6" x2="50" y2="20" stroke="#2ea89c" strokeWidth="3" strokeLinecap="round" />
+        <line x1="50" y1="80" x2="50" y2="94" stroke="#2ea89c" strokeWidth="3" strokeLinecap="round" />
+        <line x1="6" y1="50" x2="20" y2="50" stroke="#2ea89c" strokeWidth="3" strokeLinecap="round" />
+        <line x1="80" y1="50" x2="94" y2="50" stroke="#2ea89c" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="50" cy="50" r="5" fill="#2ea89c" />
+        <circle cx="71" cy="29" r="9" stroke="#c42840" strokeWidth="2.5" fill="none" opacity="0.45" />
+        <circle cx="71" cy="29" r="4.5" fill="#c42840" />
+      </svg>
+    ),
+    { ...size }
+  );
+}

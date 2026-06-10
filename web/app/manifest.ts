@@ -1,0 +1,21 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "NI Unrest Monitor",
+    short_name: "NI Monitor",
+    description: "Real-time civil unrest situational awareness for Ireland and Northern Ireland",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#080c10",
+    theme_color: "#080c10",
+    icons: [
+      {
+        src: "/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "any",
+      },
+    ],
+  };
+}
