@@ -1,13 +1,15 @@
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from browser import cloak_page
 from cookies import load_netscape_cookies
 from enricher import RawItem
 
 logger = logging.getLogger(__name__)
+
+MAX_AGE_DAYS = 3 * 365
 
 REDDIT_SEED = 1001
 REDDIT_COOKIES_FILE = os.getenv("REDDIT_COOKIES_FILE", "/app/cookies/www.reddit.com_cookies.txt")
@@ -33,6 +35,7 @@ _HEADERS = {
 
 async def fetch(since: datetime | None) -> list[RawItem]:
     items: list[RawItem] = []
+    cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)
 
     for url, label in SUBREDDITS_AND_QUERIES:
         try:
@@ -59,7 +62,10 @@ async def fetch(since: datetime | None) -> list[RawItem]:
                 created = p.get("created_utc")
                 pub = None
                 if created:
-                    pub = datetime.fromtimestamp(created, tz=timezone.utc).isoformat()
+                    created_dt = datetime.fromtimestamp(created, tz=timezone.utc)
+                    if created_dt < cutoff:
+                        continue
+                    pub = created_dt.isoformat()
 
                 if not title:
                     continue

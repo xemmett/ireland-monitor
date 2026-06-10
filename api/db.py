@@ -53,6 +53,8 @@ async def get_incidents(
         conditions.append(f"time >= ${n}::timestamptz")
         args.append(since)
         n += 1
+    else:
+        conditions.append("time >= now() - interval '3 days'")
 
     if severity_min and severity_min in SEVERITY_ORDER:
         idx = SEVERITY_ORDER.index(severity_min)
@@ -105,6 +107,8 @@ async def get_geojson(since: str | None = None, country: str | None = None) -> d
         conditions.append(f"time >= ${n}::timestamptz")
         args.append(since)
         n += 1
+    else:
+        conditions.append("time >= now() - interval '3 days'")
 
     if country:
         conditions.append(f"country = ${n}")

@@ -14,7 +14,7 @@ BRIEF_KEY = "brief:latest"
 BRIEF_MODEL = "claude-sonnet-4-6"
 
 BRIEF_PROMPT = """You are an OSINT analyst for Ireland/Northern Ireland civil unrest monitoring.
-Based on the following incidents from the last 24 hours, produce a JSON brief with EXACTLY this structure:
+Based on the following incidents from the last 3 days, produce a JSON brief with EXACTLY this structure:
 {{
   "situation": "2-3 sentence overall summary covering all of Ireland",
   "situation_ni": "1-2 sentence summary covering only Northern Ireland",
@@ -40,9 +40,9 @@ async def get_recent_for_brief(pool: asyncpg.Pool) -> list[dict]:
     query = """
         SELECT time, title, summary, severity, source, location, country
         FROM incidents
-        WHERE time >= now() - interval '24 hours'
+        WHERE time >= now() - interval '3 days'
         ORDER BY time DESC
-        LIMIT 150
+        LIMIT 450
     """
     async with pool.acquire() as conn:
         rows = await conn.fetch(query)
@@ -54,7 +54,7 @@ async def generate_and_cache(pool: asyncpg.Pool, redis_client: aioredis.Redis):
 
     if not incidents:
         brief = {
-            "situation": "No significant civil unrest incidents reported in Ireland/Northern Ireland in the last 24 hours.",
+            "situation": "No significant civil unrest incidents reported in Ireland/Northern Ireland in the last 3 days.",
             "situation_ni": "No significant incidents reported.",
             "situation_roi": "No significant incidents reported.",
             "hotspots": [],
