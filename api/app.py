@@ -3,6 +3,7 @@ import json
 import os
 from contextlib import asynccontextmanager
 
+import httpx
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,18 +30,33 @@ def get_redis() -> aioredis.Redis:
     return _redis
 
 
+_CHANNEL_EVENTS = {
+    "incidents:new": "incident",
+    "brief:updated": "brief",
+}
+
+# TrafficWatchNI CCTV stills require a same-site Referer or they 403 — proxy
+# them through our own origin so the dashboard can <img> them directly.
+WEBCAM_SOURCES = {
+    "belfast-clifton": "https://cctv.trafficwatchni.com/8.jpg",
+    "belfast-lagan": "https://cctv.trafficwatchni.com/9.jpg",
+    "derry-james": "https://cctv.trafficwatchni.com/3292.jpg",
+}
+
+
 async def _redis_fanout():
     """Single Redis pub/sub listener that fans out to all SSE clients."""
     redis_client = get_redis()
     pubsub = redis_client.pubsub()
-    await pubsub.subscribe("incidents:new")
+    await pubsub.subscribe(*_CHANNEL_EVENTS.keys())
     try:
         async for message in pubsub.listen():
             if message["type"] == "message":
+                event_name = _CHANNEL_EVENTS.get(message["channel"], "incident")
                 data = message["data"]
                 for q in list(_sse_clients):
                     try:
-                        q.put_nowait(data)
+                        q.put_nowait((event_name, data))
                     except asyncio.QueueFull:
                         pass
     finally:
@@ -119,14 +135,42 @@ async def stream(request: Request):
                 if await request.is_disconnected():
                     break
                 try:
-                    data = await asyncio.wait_for(q.get(), timeout=25.0)
-                    yield {"event": "incident", "data": data}
+                    event_name, data = await asyncio.wait_for(q.get(), timeout=25.0)
+                    yield {"event": event_name, "data": data}
                 except asyncio.TimeoutError:
                     yield {"event": "ping", "data": "heartbeat"}
         finally:
             _sse_clients.discard(q)
 
     return EventSourceResponse(event_generator())
+
+
+@app.get("/api/webcam/{cam_id}")
+async def webcam(cam_id: str):
+    """Proxy a TrafficWatchNI CCTV still — the upstream 403s without a same-site Referer."""
+    url = WEBCAM_SOURCES.get(cam_id)
+    if not url:
+        return Response(status_code=404)
+
+    try:
+        async with httpx.AsyncClient() as client:
+            upstream = await client.get(
+                url,
+                headers={
+                    "Referer": "https://www.trafficwatchni.com/",
+                    "User-Agent": "Mozilla/5.0 (compatible; NIUnrestMonitor/1.0)",
+                },
+                timeout=10,
+            )
+        if upstream.status_code != 200:
+            return Response(status_code=502)
+        return Response(
+            content=upstream.content,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store"},
+        )
+    except httpx.HTTPError:
+        return Response(status_code=502)
 
 
 @app.get("/api/sources")

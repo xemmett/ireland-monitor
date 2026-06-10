@@ -16,6 +16,9 @@ node_modules/
 # Docker volumes (if bind-mounted locally)
 pgdata/
 
+# Session cookies (sensitive auth tokens)
+cookies/
+
 # OS
 .DS_Store
 Thumbs.db

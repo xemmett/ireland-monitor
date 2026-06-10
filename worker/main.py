@@ -109,8 +109,9 @@ async def cycle():
 
         await expire_old(pool)
 
-        # Always regenerate brief after each cycle (fixed cost, not per-user)
-        await generate_and_cache(pool, redis_client)
+        # Only regenerate the brief (Sonnet call) when there's something new to report
+        if inserted_count > 0:
+            await generate_and_cache(pool, redis_client)
 
         logger.info("=== Cycle done: %d new incidents inserted ===", inserted_count)
 

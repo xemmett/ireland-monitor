@@ -5,12 +5,14 @@ import { useEffect, useRef, useState } from "react";
 const API_BASE = "/api";
 
 const COLORS: Record<string, string> = {
-  calm: "#3fb6a8",
-  watch: "#d8b34a",
-  elevated: "#e08a3c",
-  high: "#d8633f",
-  critical: "#cf3a4e",
+  calm: "#2ea89c",
+  watch: "#c9a83a",
+  elevated: "#d07a2e",
+  high: "#c85030",
+  critical: "#c42840",
 };
+
+const MONO = "'Share Tech Mono', 'Courier New', monospace";
 
 interface Brief {
   situation: string;
@@ -45,11 +47,22 @@ export default function BriefPanel() {
 
   useEffect(() => {
     fetchBrief();
-    // Re-fetch every 5 minutes (brief regenerates each 12-min worker cycle)
     intervalRef.current = setInterval(fetchBrief, 5 * 60 * 1000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+  }, []);
+
+  // Live updates — worker pushes a fresh brief whenever new incidents land
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE}/stream`);
+    es.addEventListener("brief", (e) => {
+      try {
+        setBrief(JSON.parse(e.data));
+        setLoading(false);
+      } catch {}
+    });
+    return () => es.close();
   }, []);
 
   return (
@@ -58,31 +71,42 @@ export default function BriefPanel() {
       <div
         style={{
           padding: "8px 10px",
-          borderBottom: "1px solid #1e2a38",
+          borderBottom: "1px solid #1a2535",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           flexShrink: 0,
+          background: "#080e14",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#6b7f94" }}>
-            SITUATION REPORT
-          </span>
-        </div>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: 2,
+            color: "#4a6070",
+            fontFamily: MONO,
+          }}
+        >
+          &gt;&gt; SITREP
+        </span>
         {brief?.generated_at && (
-          <span style={{ fontSize: 10, color: "#6b7f94" }}>{timeAgo(brief.generated_at)}</span>
+          <span style={{ fontSize: 10, color: "#4a6070", fontFamily: MONO }}>
+            [{timeAgo(brief.generated_at)}]
+          </span>
         )}
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 10px 10px 10px" }}>
         {loading && (
-          <div style={{ color: "#6b7f94", fontSize: 11 }}>Loading…</div>
+          <div style={{ color: "#4a6070", fontSize: 11, fontFamily: MONO }}>
+            LOADING…
+          </div>
         )}
 
         {!loading && !brief && (
-          <div style={{ color: "#6b7f94", fontSize: 11 }}>
+          <div style={{ color: "#4a6070", fontSize: 11, fontFamily: MONO, lineHeight: 1.7 }}>
             Brief will appear after the first scrape cycle.
           </div>
         )}
@@ -90,13 +114,29 @@ export default function BriefPanel() {
         {brief && (
           <>
             {brief.incident_count > 0 && (
-              <div style={{ fontSize: 10, color: "#6b7f94", marginBottom: 10 }}>
-                Based on {brief.incident_count} incident{brief.incident_count !== 1 ? "s" : ""} · 24h window
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "#4a6070",
+                  marginBottom: 12,
+                  fontFamily: MONO,
+                }}
+              >
+                [{brief.incident_count} EVENTS · 24H WINDOW]
               </div>
             )}
 
             <Section label="SITUATION">
-              <p style={{ fontSize: 12, lineHeight: 1.6, color: "#c9d6e3" }}>{brief.situation}</p>
+              <p
+                style={{
+                  fontSize: 11,
+                  lineHeight: 1.75,
+                  color: "#9ab0be",
+                  fontFamily: MONO,
+                }}
+              >
+                {brief.situation}
+              </p>
             </Section>
 
             {brief.hotspots?.length > 0 && (
@@ -105,22 +145,31 @@ export default function BriefPanel() {
                   <div
                     key={i}
                     style={{
-                      marginBottom: 8,
+                      marginBottom: 10,
                       paddingLeft: 8,
-                      borderLeft: `2px solid ${COLORS[h.severity] || "#1e2a38"}`,
+                      borderLeft: `2px solid ${COLORS[h.severity] || "#1a2535"}`,
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: 700,
-                        color: COLORS[h.severity] || "#c9d6e3",
-                        marginBottom: 2,
+                        color: COLORS[h.severity] || "#b8ccd8",
+                        marginBottom: 3,
+                        fontFamily: MONO,
+                        letterSpacing: 0.5,
                       }}
                     >
-                      {h.location}
+                      ▶ {h.location.toUpperCase()}
                     </div>
-                    <div style={{ fontSize: 11, color: "#c9d6e3", lineHeight: 1.5 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#9ab0be",
+                        lineHeight: 1.65,
+                        fontFamily: MONO,
+                      }}
+                    >
                       {h.summary}
                     </div>
                   </div>
@@ -129,16 +178,43 @@ export default function BriefPanel() {
             )}
 
             <Section label="OUTLOOK">
-              <p style={{ fontSize: 12, lineHeight: 1.6, color: "#c9d6e3" }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  lineHeight: 1.75,
+                  color: "#9ab0be",
+                  fontFamily: MONO,
+                }}
+              >
                 {brief.escalation_outlook}
               </p>
             </Section>
 
             {brief.monitoring_priorities?.length > 0 && (
               <Section label="PRIORITIES">
-                <ul style={{ paddingLeft: 14 }}>
+                <ul style={{ paddingLeft: 0, listStyle: "none" }}>
                   {brief.monitoring_priorities.map((p, i) => (
-                    <li key={i} style={{ fontSize: 11, color: "#c9d6e3", marginBottom: 3 }}>
+                    <li
+                      key={i}
+                      style={{
+                        fontSize: 11,
+                        color: "#9ab0be",
+                        marginBottom: 4,
+                        fontFamily: MONO,
+                        lineHeight: 1.6,
+                        paddingLeft: 12,
+                        position: "relative",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          color: "#2ea89c",
+                        }}
+                      >
+                        &gt;
+                      </span>
                       {p}
                     </li>
                   ))}
@@ -154,17 +230,20 @@ export default function BriefPanel() {
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 14 }}>
       <div
         style={{
           fontSize: 9,
           fontWeight: 700,
-          letterSpacing: 1,
-          color: "#6b7f94",
-          marginBottom: 4,
+          letterSpacing: 2,
+          color: "#4a6070",
+          marginBottom: 6,
+          fontFamily: "'Share Tech Mono', 'Courier New', monospace",
+          borderBottom: "1px solid #1a2535",
+          paddingBottom: 4,
         }}
       >
-        {label}
+        // {label}
       </div>
       {children}
     </div>

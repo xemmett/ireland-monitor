@@ -1,4 +1,5 @@
 fastapi>=0.115
+httpx
 uvicorn[standard]
 asyncpg
 redis[asyncio]

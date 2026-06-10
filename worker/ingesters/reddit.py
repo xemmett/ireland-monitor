@@ -1,13 +1,17 @@
 import json
 import logging
+import os
 from datetime import datetime, timezone
 
 from browser import cloak_page
+from cookies import load_netscape_cookies
 from enricher import RawItem
 
 logger = logging.getLogger(__name__)
 
 REDDIT_SEED = 1001
+REDDIT_COOKIES_FILE = os.getenv("REDDIT_COOKIES_FILE", "/app/cookies/www.reddit.com_cookies.txt")
+_REDDIT_COOKIES = load_netscape_cookies(REDDIT_COOKIES_FILE)
 SUBREDDITS_AND_QUERIES = [
     ("https://www.reddit.com/r/northernireland/new.json?limit=25", "r/northernireland new"),
     ("https://www.reddit.com/r/belfast/new.json?limit=25", "r/belfast new"),
@@ -27,7 +31,7 @@ async def fetch(since: datetime | None) -> list[RawItem]:
 
     for url, label in SUBREDDITS_AND_QUERIES:
         try:
-            async with cloak_page(seed=REDDIT_SEED) as page:
+            async with cloak_page(seed=REDDIT_SEED, cookies=_REDDIT_COOKIES) as page:
                 # Use page.request.get() — makes an XHR through the browser's
                 # network stack (with stealth fingerprint) without triggering
                 # Reddit's "use the app" interstitial page render.

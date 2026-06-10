@@ -70,6 +70,8 @@ services:
       SCRAPE_INTERVAL_MINUTES: ${SCRAPE_INTERVAL_MINUTES:-12}
       PROXY_URL: ${PROXY_URL:-}
       TELEGRAM_CHANNELS: ${TELEGRAM_CHANNELS:-}
+    volumes:
+      - ./cookies:/app/cookies:ro
     depends_on:
       db:
         condition: service_healthy

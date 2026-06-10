@@ -12,10 +12,17 @@ CDP_URL = os.getenv("CDP_URL", "http://cloak:9222")
 class CloakPage:
     """Context manager that owns a single browser page and cleans up reliably."""
 
-    def __init__(self, seed: int, timezone: str = "Europe/London", locale: str = "en-GB"):
+    def __init__(
+        self,
+        seed: int,
+        timezone: str = "Europe/London",
+        locale: str = "en-GB",
+        cookies: list[dict] | None = None,
+    ):
         self.seed = seed
         self.timezone = timezone
         self.locale = locale
+        self.cookies = cookies
         self._pw = None
         self._browser = None
         self._ctx = None
@@ -32,6 +39,8 @@ class CloakPage:
             )
             self._browser = await self._pw.chromium.connect_over_cdp(url)
             self._ctx = await self._browser.new_context(locale=self.locale)
+            if self.cookies:
+                await self._ctx.add_cookies(self.cookies)
             self.page = await self._ctx.new_page()
         except Exception:
             await self._pw.stop()
@@ -56,5 +65,10 @@ class CloakPage:
             pass
 
 
-def cloak_page(seed: int, timezone: str = "Europe/London", locale: str = "en-GB") -> CloakPage:
-    return CloakPage(seed=seed, timezone=timezone, locale=locale)
+def cloak_page(
+    seed: int,
+    timezone: str = "Europe/London",
+    locale: str = "en-GB",
+    cookies: list[dict] | None = None,
+) -> CloakPage:
+    return CloakPage(seed=seed, timezone=timezone, locale=locale, cookies=cookies)

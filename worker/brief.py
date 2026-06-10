@@ -54,6 +54,7 @@ async def generate_and_cache(pool: asyncpg.Pool, redis_client: aioredis.Redis):
             "incident_count": 0,
         }
         await redis_client.set(BRIEF_KEY, json.dumps(brief))
+        await redis_client.publish("brief:updated", json.dumps(brief))
         return
 
     items_text = "\n".join(
@@ -77,6 +78,7 @@ async def generate_and_cache(pool: asyncpg.Pool, redis_client: aioredis.Redis):
         brief["generated_at"] = datetime.now(timezone.utc).isoformat()
         brief["incident_count"] = len(incidents)
         await redis_client.set(BRIEF_KEY, json.dumps(brief))
+        await redis_client.publish("brief:updated", json.dumps(brief))
         logger.info("Brief generated and cached (%d incidents)", len(incidents))
     except Exception as e:
         logger.error("Brief generation failed: %s", e)

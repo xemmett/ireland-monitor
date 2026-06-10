@@ -5,17 +5,18 @@
 }
 
 :root {
-  --bg: #0b0f14;
-  --panel: #141a22;
-  --border: #1e2a38;
-  --text: #c9d6e3;
-  --text-dim: #6b7f94;
-  --calm: #3fb6a8;
-  --watch: #d8b34a;
-  --elevated: #e08a3c;
-  --high: #d8633f;
-  --critical: #cf3a4e;
-  --accent: #3b7dd8;
+  --bg: #080c10;
+  --panel: #0d1219;
+  --border: #1a2535;
+  --text: #b8ccd8;
+  --text-dim: #4a6070;
+  --calm: #2ea89c;
+  --watch: #c9a83a;
+  --elevated: #d07a2e;
+  --high: #c85030;
+  --critical: #c42840;
+  --accent: #2e6ec0;
+  --font-mono: 'Share Tech Mono', 'Courier New', monospace;
 }
 
 html,
@@ -48,16 +49,19 @@ button {
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
-  border-radius: 4px;
+  border-radius: 2px;
   padding: 6px 14px;
   font-size: 12px;
-  transition: background 0.15s;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  transition: background 0.15s, border-color 0.15s;
 }
 button:hover {
-  background: var(--border);
+  background: #162030;
+  border-color: #2e6ec0;
 }
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -69,19 +73,66 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Pulse ring animation for new map markers */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 0.9; }
+  70%  { transform: scale(2.8); opacity: 0; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+.pulse-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  animation: pulse-ring 1.8s ease-out infinite;
+  border: 2px solid currentColor;
+  pointer-events: none;
+}
+
+/* Scanlines overlay — apply to panel wrappers with position:relative */
+.scanlines::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.06) 2px,
+    rgba(0, 0, 0, 0.06) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.scanlines > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Feed flash animation for new items */
+@keyframes feed-flash {
+  from { background-color: rgba(46, 110, 192, 0.14); }
+  to   { background-color: transparent; }
+}
+.feed-new {
+  animation: feed-flash 1.4s ease-out forwards;
+}
+
 /* Leaflet overrides */
 .leaflet-container {
-  background: #0d0d0d !important;
+  background: #080c10 !important;
 }
 .leaflet-popup-content-wrapper {
-  background: var(--panel) !important;
+  background: #0d1219 !important;
   color: var(--text) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 6px !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid #1a2535 !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.8), 0 0 0 1px #1e3a4a !important;
 }
 .leaflet-popup-tip {
-  background: var(--panel) !important;
+  background: #0d1219 !important;
 }
 .leaflet-popup-content {
   margin: 10px 14px !important;
@@ -90,7 +141,11 @@ a:hover {
   min-width: 200px;
 }
 .leaflet-control-zoom a {
-  background: var(--panel) !important;
+  background: #0d1219 !important;
   color: var(--text) !important;
-  border-color: var(--border) !important;
+  border-color: #1a2535 !important;
+  font-family: var(--font-mono) !important;
+}
+.leaflet-control-zoom a:hover {
+  background: #162030 !important;
 }

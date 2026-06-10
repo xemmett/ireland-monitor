@@ -13,7 +13,7 @@ RSS_FEEDS: dict[str, tuple[str, str]] = {
     "BBC News NI":        ("https://feeds.bbci.co.uk/news/northern_ireland/rss.xml", "news"),
     "RTÉ News":           ("https://www.rte.ie/feeds/rss/?index=/news/&type=web", "news"),
     "Belfast Telegraph":  ("https://www.belfasttelegraph.co.uk/syndication/rss/news/", "news"),
-    "Irish News":         ("https://www.irishnews.com/rss/", "news"),
+    "Irish News":         ("https://www.irishnews.com/arc/outboundfeeds/rss/", "news"),
     "The Journal":        ("https://www.thejournal.ie/feed/", "news"),
     "PSNI":               ("https://www.psni.police.uk/news/Latest-News/rss/", "official"),
 }
