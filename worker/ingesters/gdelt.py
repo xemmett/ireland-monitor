@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 from urllib.parse import quote
@@ -15,6 +16,12 @@ GDELT_QUERY = (
 )
 GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 
+# GDELT throttles clients it can't identify, and httpx's default python-httpx UA is one.
+HEADERS = {
+    "User-Agent": "ni-unrest-monitor/1.0 (OSINT civil-unrest tracking; contact via repo)",
+    "Accept": "application/json",
+}
+
 
 async def fetch(since: datetime | None) -> list[RawItem]:
     params = {
@@ -26,8 +33,14 @@ async def fetch(since: datetime | None) -> list[RawItem]:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=20.0, headers=HEADERS) as client:
             resp = await client.get(GDELT_URL, params=params)
+            # ponytail: one retry, no backoff library — GDELT's limit is roughly a
+            # request every few seconds and the worker only calls this once a cycle.
+            if resp.status_code == 429:
+                logger.warning("GDELT 429, retrying once in 10s")
+                await asyncio.sleep(10)
+                resp = await client.get(GDELT_URL, params=params)
             resp.raise_for_status()
             data = resp.json()
     except Exception as e:
